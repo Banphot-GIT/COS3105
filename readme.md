@@ -1,0 +1,8 @@
+Action | Request | Response สำเร็จ (Status = 0) | Response กรณี Error (Status Code)
+1. สร้าง Board | ADD_BOARD,<name> | ADD_BOARD,0 | ADD_BOARD,200 (ชื่อว่าง)|  ADD_BOARD,501 (เขียนไฟล์ล้มเหลว)   
+2. ดึงรายการ Board | LIST_BOARDSLIST_BOARDS,0,<id1>:<name1>;<id2>:<name2> | LIST_BOARDS,202 (ไม่มีบอร์ด) | LIST_BOARDS,1 (อ่านไฟล์ล้มเหลว)   
+3. แก้ไข Board | UPDATE_BOARD,<id>,<new_name>UPDATE_BOARD,0UPDATE_BOARD,201 (ไม่พบบอร์ด) | UPDATE_BOARD,200 (ชื่อว่าง)   
+4. ลบ Board | DELETE_BOARD,<id> | DELETE_BOARD,0 | DELETE_BOARD,201 (ไม่พบบอร์ด)   
+5. สร้าง Task | ADD_TASK,<board_id>,<title> | ADD_TASK,0 | ADD_TASK,201 (ไม่พบบอร์ด) | ADD_TASK,200 (ข้อมูลไม่ครบ) | ADD_TASK,503 (เขียนไฟล์ล้มเหลว)   6. ดึงรายการ Task | LIST_TASKS,<board_id> | LIST_TASKS,0,<tid1>:<title1>;<tid2>:<title2> | LIST_TASKS,204 (บอร์ดนี้ไม่มี task) | LIST_TASKS,201 (ไม่พบบอร์ด)   
+7. แก้ไข Task | UPDATE_TASK,<board_id>,<task_id>,<new_title> | UPDATE_TASK,0UPDATE_TASK,203 (ไม่พบ task) | UPDATE_TASK,201 (ไม่พบบอร์ด)   
+8. ลบ Task | DELETE_TASK,<board_id>,<task_id> | DELETE_TASK,0 | DELETE_TASK,203 (ไม่พบ task)   
