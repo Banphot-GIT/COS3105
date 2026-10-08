@@ -11,7 +11,7 @@
 #define BUF_SIZE 2048
 #define SERVER_PORT "3030"
 
-// ฟังก์ชันส่งและรับข้อมูล จบในที่เดียว
+// data send
 void send_cmd(int sock, const char *msg, char *res) {
     char send_buf[BUF_SIZE];
     snprintf(send_buf, sizeof(send_buf), "%s\n", msg);
@@ -23,7 +23,7 @@ void send_cmd(int sock, const char *msg, char *res) {
     replace_char(res, '\n', '\0');
 }
 
-// เมนูจัดการ Task ในบอร์ด (สไลด์หน้า 5)
+//Task 
 void task_menu(int sock, int board_id) {
     int choice;
     char req[BUF_SIZE], res[BUF_SIZE];
@@ -34,7 +34,6 @@ void task_menu(int sock, int board_id) {
         printf("\n========================================\n");
         printf("List Task in Board no. %d\n", board_id);
 
-        // ดึงรายการ Task ปัจจุบันขึ้นมาแสดง
         snprintf(req, sizeof(req), "%s%s%d", COMMAND_LIST_TASKS, COMMAND_SEPARATOR, board_id);
         send_cmd(sock, req, res);
         printf("%s\n", res);
@@ -46,7 +45,7 @@ void task_menu(int sock, int board_id) {
         printf("4. Back to Board Menu\n");
         printf("You select option: ");
         if (scanf("%d", &choice) != 1) {
-            while (getchar() != '\n'); // ล้าง buffer กรณีพิมพ์ผิด
+            while (getchar() != '\n');  
             continue;
         }
 
@@ -96,7 +95,7 @@ void task_menu(int sock, int board_id) {
     }
 }
 
-// เมนูหลักจัดการ Board (สไลด์หน้า 4)
+//Board 
 int main(int argc, char *argv[]) {
     int sock;
     struct sockaddr_in serv_addr;
@@ -106,7 +105,6 @@ int main(int argc, char *argv[]) {
     int board_id;
     int port = atoi(SERVER_PORT);
 
-    // เชื่อมต่อไปยัง Server พอร์ต 3030 ตามที่อาจารย์ระบุ
     sock = socket(AF_INET, SOCK_STREAM, 0);
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
