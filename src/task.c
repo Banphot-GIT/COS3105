@@ -5,6 +5,7 @@
 #include "../include/protocol.h"
 #include "board.h"
 #include "task.h"
+#include "common.h"
 
 int init_task(void){
     FILE *fp = fopen(task_file,"a");
@@ -192,42 +193,59 @@ int update_task(int board_id, int t_task_id, const char *new_title) {
     return STATUS_OK;
 }
 
-int del_task(int board_id, int t_task_id){
-    if(board_id <=0 || t_task_id <=0){
+int del_task(int board_id, int t_task_id) {
+    if (board_id <= 0 || t_task_id <= 0) {
         return STATUS_INVALID_ARGUMENTS;
     }
-    init_task();
+
     FILE *fp = fopen(task_file, "r");
-    if(!fp){
-        return STATUS_FAIL;
+    if (!fp) {
+        return STATUS_TASK_NOT_FOUND;
     }
 
     FILE *temp = fopen("data/temp_task.txt", "w");
-    if(!temp){
+    if (!temp) {
         fclose(fp);
-        return STATUS_SAVE_TASK_FAIL;
+        return STATUS_FAIL;
     }
-    int bid, tid;
-    char title[max_task_title];
+
+    char line[256];
     int found = 0;
 
-    while (fscanf(fp, "%d,%d,%99[^\n]\n", &bid, &tid, title) == 3)
-    {
-        if(bid==board_id && tid == t_task_id){
-            found = 1;
-        }else{
-            fprintf(temp, "%d,%d,%s\n", bid, tid, title);
+    while (fgets(line, sizeof(line), fp)) {
+        replace_char(line, '\r', '\0');
+        replace_char(line, '\n', '\0');
+        if (isEmptyOrSpace(line)) continue;
+
+        char line_copy[256];
+        strncpy(line_copy, line, sizeof(line_copy) - 1);
+        line_copy[sizeof(line_copy) - 1] = '\0';
+
+        char *saveptr;
+        char *bid_str = strtok_r(line_copy, ",", &saveptr);
+        char *tid_str = strtok_r(NULL, ",", &saveptr);
+        char *title   = strtok_r(NULL, ",", &saveptr);
+
+        if (bid_str && tid_str && title) {
+            int bid = atoi(bid_str);
+            int tid = atoi(tid_str);
+
+            if (bid == board_id && tid == t_task_id) {
+                found = 1;
+            } else {
+                fprintf(temp, "%d,%d,%s\n", bid, tid, title);
+            }
         }
     }
+
     fclose(fp);
     fclose(temp);
-
     remove(task_file);
     rename("data/temp_task.txt", task_file);
 
-    if(!found){
+    if (!found) {
         return STATUS_TASK_NOT_FOUND;
     }
+
     return STATUS_OK;
-    
 }

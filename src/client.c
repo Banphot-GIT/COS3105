@@ -11,7 +11,6 @@
 #define BUF_SIZE 2048
 #define SERVER_PORT "3030"
 
-// data send
 void send_cmd(int sock, const char *msg, char *res) {
     char send_buf[BUF_SIZE];
     snprintf(send_buf, sizeof(send_buf), "%s\n", msg);
@@ -23,7 +22,125 @@ void send_cmd(int sock, const char *msg, char *res) {
     replace_char(res, '\n', '\0');
 }
 
-//Task 
+int display_boards(char *res) {
+    char copy[BUF_SIZE];
+    strncpy(copy, res, sizeof(copy) - 1);
+    copy[sizeof(copy) - 1] = '\0';
+
+    char *saveptr;
+    char *cmd = strtok_r(copy, COMMAND_SEPARATOR, &saveptr);
+    char *status_str = strtok_r(NULL, COMMAND_SEPARATOR, &saveptr);
+    char *data = strtok_r(NULL, COMMAND_SEPARATOR, &saveptr);
+
+    (void)cmd;
+    if (!status_str) {
+        printf("Error: Invalid server response.\n");
+        return 0;
+    }
+
+    int status = atoi(status_str);
+    if (status == STATUS_EMPTY_BOARD || !data || isEmptyOrSpace(data)) {
+        printf("(No boards available)\n");
+        return 0;
+    }
+
+    if (status != STATUS_OK) {
+        printf("Failed to list boards (Code: %d)\n", status);
+        return 0;
+    }
+
+    char *item_saveptr;
+    char *item = strtok_r(data, ";", &item_saveptr);
+    while (item != NULL) {
+        char *colon = strchr(item, ':');
+        if (colon) {
+            *colon = '\0';
+            printf("%s: %s\n", item, colon + 1);
+        } else {
+            printf("%s\n", item);
+        }
+        item = strtok_r(NULL, ";", &item_saveptr);
+    }
+    return 1;
+}
+
+int display_tasks(char *res) {
+    char copy[BUF_SIZE];
+    strncpy(copy, res, sizeof(copy) - 1);
+    copy[sizeof(copy) - 1] = '\0';
+
+    char *saveptr;
+    char *cmd = strtok_r(copy, COMMAND_SEPARATOR, &saveptr);
+    char *status_str = strtok_r(NULL, COMMAND_SEPARATOR, &saveptr);
+    char *data = strtok_r(NULL, COMMAND_SEPARATOR, &saveptr);
+
+    (void)cmd;
+    if (!status_str) {
+        printf("Error: Invalid server response.\n");
+        return -1;
+    }
+
+    int status = atoi(status_str);
+
+    if (status == STATUS_BOARD_NOT_FOUND) {
+        printf("Error: Board not found!\n");
+        return 0;
+    }
+
+    if (status == STATUS_EMPTY_TASK || !data || isEmptyOrSpace(data)) {
+        printf("(No tasks in this board)\n");
+        return 1;
+    }
+
+    if (status != STATUS_OK) {
+        printf("Failed to list tasks (Code: %d)\n", status);
+        return -1;
+    }
+
+    char *item_saveptr;
+    char *item = strtok_r(data, ";", &item_saveptr);
+    while (item != NULL) {
+        char *colon = strchr(item, ':');
+        if (colon) {
+            *colon = '\0';
+            printf("  Task %s: %s\n", item, colon + 1);
+        } else {
+            printf("  %s\n", item);
+        }
+        item = strtok_r(NULL, ";", &item_saveptr);
+    }
+    return 1;
+}
+
+void print_action_result(const char *res, const char *action_name) {
+    char copy[BUF_SIZE];
+    strncpy(copy, res, sizeof(copy) - 1);
+    copy[sizeof(copy) - 1] = '\0';
+
+    char *saveptr;
+    strtok_r(copy, COMMAND_SEPARATOR, &saveptr); // ข้ามชื่อ Command
+    char *status_str = strtok_r(NULL, COMMAND_SEPARATOR, &saveptr);
+
+    if (!status_str) {
+        printf("Response: %s\n", res);
+        return;
+    }
+
+    int status = atoi(status_str);
+    if (status == STATUS_OK) {
+        printf("Success: %s completed successfully.\n", action_name);
+    } else if (status == STATUS_BOARD_NOT_FOUND) {
+        printf("Error: Board not found!\n");
+    } else if (status == STATUS_TASK_NOT_FOUND) {
+        printf("Error: Task not found!\n");
+    } else if (status == STATUS_INVALID_ARGUMENTS) {
+        printf("Error: Invalid arguments provided.\n");
+    } else {
+        printf("Error: %s failed (Code: %d)\n", action_name, status);
+    }
+}
+
+// Task Menu
 void task_menu(int sock, int board_id) {
     int choice;
     char req[BUF_SIZE], res[BUF_SIZE];
@@ -36,9 +153,9 @@ void task_menu(int sock, int board_id) {
 
         snprintf(req, sizeof(req), "%s%s%d", COMMAND_LIST_TASKS, COMMAND_SEPARATOR, board_id);
         send_cmd(sock, req, res);
-        printf("%s\n", res);
+        display_tasks(res);
 
-        printf("What do you want to do?\n");
+        printf("\nWhat do you want to do?\n");
         printf("1. Create Task\n");
         printf("2. Edit Task\n");
         printf("3. Delete Task\n");
@@ -62,7 +179,7 @@ void task_menu(int sock, int board_id) {
             snprintf(req, sizeof(req), "%s%s%d%s%s", 
                      COMMAND_ADD_TASK, COMMAND_SEPARATOR, board_id, COMMAND_SEPARATOR, text);
             send_cmd(sock, req, res);
-            printf("Response: %s\n", res);
+            print_action_result(res, "Create Task");
 
         } else if (choice == 2) {
             printf("Please input task id to edit: ");
@@ -78,7 +195,7 @@ void task_menu(int sock, int board_id) {
             snprintf(req, sizeof(req), "%s%s%d%s%d%s%s", 
                      COMMAND_UPDATE_TASK, COMMAND_SEPARATOR, board_id, COMMAND_SEPARATOR, task_id, COMMAND_SEPARATOR, text);
             send_cmd(sock, req, res);
-            printf("Response: %s\n", res);
+            print_action_result(res, "Update Task");
 
         } else if (choice == 3) {
             printf("Please input task id to delete: ");
@@ -87,7 +204,7 @@ void task_menu(int sock, int board_id) {
             snprintf(req, sizeof(req), "%s%s%d%s%d", 
                      COMMAND_DELETE_TASK, COMMAND_SEPARATOR, board_id, COMMAND_SEPARATOR, task_id);
             send_cmd(sock, req, res);
-            printf("Response: %s\n", res);
+            print_action_result(res, "Delete Task");
 
         } else if (choice == 4) {
             break;
@@ -95,7 +212,7 @@ void task_menu(int sock, int board_id) {
     }
 }
 
-//Board 
+// Board Menu
 int main(int argc, char *argv[]) {
     int sock;
     struct sockaddr_in serv_addr;
@@ -133,12 +250,16 @@ int main(int argc, char *argv[]) {
         if (choice == 1) {
             snprintf(req, sizeof(req), "%s", COMMAND_LIST_BOARDS);
             send_cmd(sock, req, res);
-            printf("\nList Boards:\n%s\n", res);
 
-            printf("Please select Board no (0 to cancel): ");
-            scanf("%d", &board_id);
-            if (board_id > 0) {
-                task_menu(sock, board_id);
+            printf("\nList Boards:\n");
+            int has_boards = display_boards(res);
+
+            if (has_boards) {
+                printf("\nPlease select Board no (0 to cancel): ");
+                scanf("%d", &board_id);
+                if (board_id > 0) {
+                    task_menu(sock, board_id);
+                }
             }
 
         } else if (choice == 2) {
@@ -152,7 +273,7 @@ int main(int argc, char *argv[]) {
 
             snprintf(req, sizeof(req), "%s%s%s", COMMAND_ADD_BOARD, COMMAND_SEPARATOR, text);
             send_cmd(sock, req, res);
-            printf("Response: %s\n", res);
+            print_action_result(res, "Create Board");
 
         } else if (choice == 3) {
             printf("Please input board id to update: ");
@@ -168,7 +289,7 @@ int main(int argc, char *argv[]) {
             snprintf(req, sizeof(req), "%s%s%d%s%s", 
                      COMMAND_UPDATE_BOARD, COMMAND_SEPARATOR, board_id, COMMAND_SEPARATOR, text);
             send_cmd(sock, req, res);
-            printf("Response: %s\n", res);
+            print_action_result(res, "Update Board");
 
         } else if (choice == 4) {
             printf("Please input board id to delete: ");
@@ -176,7 +297,7 @@ int main(int argc, char *argv[]) {
 
             snprintf(req, sizeof(req), "%s%s%d", COMMAND_DELETE_BOARD, COMMAND_SEPARATOR, board_id);
             send_cmd(sock, req, res);
-            printf("Response: %s\n", res);
+            print_action_result(res, "Delete Board");
 
         } else if (choice == 5) {
             printf("Exiting...\n");

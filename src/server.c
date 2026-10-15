@@ -168,6 +168,35 @@ void handleListTasks(CommandContext *ctx)
     }
 
     int target_board_id = atoi(boardIdStr);
+    FILE *f_board = fopen(board_file, "r");
+    if (f_board == NULL) {
+        snprintf(response, sizeof(response), "%s%s%d\n", COMMAND_LIST_TASKS, COMMAND_SEPARATOR, STATUS_BOARD_NOT_FOUND);
+        send(ctx->clientSocket, response, strlen(response), 0);
+        return;
+    }
+
+    char b_line[256];
+    int board_found = 0;
+    while (fgets(b_line, sizeof(b_line), f_board) != NULL) {
+        replace_char(b_line, '\r', '\0');
+        replace_char(b_line, '\n', '\0');
+        if (isEmptyOrSpace(b_line)) continue;
+
+        char *saveptr;
+        char *id_str = strtok_r(b_line, ",", &saveptr);
+        if (id_str && atoi(id_str) == target_board_id) {
+            board_found = 1;
+            break;
+        }
+    }
+    fclose(f_board);
+
+    if (!board_found) {
+        snprintf(response, sizeof(response), "%s%s%d\n", COMMAND_LIST_TASKS, COMMAND_SEPARATOR, STATUS_BOARD_NOT_FOUND);
+        send(ctx->clientSocket, response, strlen(response), 0);
+        return;
+    }
+
     FILE *fp = fopen(task_file, "r");
     if (fp == NULL) {
         snprintf(response, sizeof(response), "%s%s%d\n", COMMAND_LIST_TASKS, COMMAND_SEPARATOR, STATUS_EMPTY_TASK);
@@ -179,20 +208,19 @@ void handleListTasks(CommandContext *ctx)
     char items[1800] = "";
     int count = 0;
 
-    /* อ่านไฟล์ tasks.txt format: task_id,board_id,title */
     while (fgets(line, sizeof(line), fp) != NULL) {
         replace_char(line, '\r', '\0');
         replace_char(line, '\n', '\0');
         if (isEmptyOrSpace(line)) continue;
 
         char *saveptr;
-        char *task_id = strtok_r(line, ",", &saveptr);
-        char *b_id = strtok_r(NULL, ",", &saveptr);
-        char *title = strtok_r(NULL, ",", &saveptr);
+        char *bid_str = strtok_r(line, ",", &saveptr);
+        char *tid_str = strtok_r(NULL, ",", &saveptr);
+        char *title   = strtok_r(NULL, ",", &saveptr);
 
-        if (task_id && b_id && title && atoi(b_id) == target_board_id) {
+        if (bid_str && tid_str && title && atoi(bid_str) == target_board_id) {
             char entry[256];
-            snprintf(entry, sizeof(entry), "%s%s:%s", (count > 0) ? ";" : "", task_id, title);
+            snprintf(entry, sizeof(entry), "%s%s:%s", (count > 0) ? ";" : "", tid_str, title);
             strncat(items, entry, sizeof(items) - strlen(items) - 1);
             count++;
         }
