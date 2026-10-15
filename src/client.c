@@ -141,38 +141,57 @@ void print_action_result(const char *res, const char *action_name) {
 }
 
 // Task Menu
-void task_menu(int sock, int board_id) {
+void task_menu(int sock, int board_id, const char *board_name) {
     int choice;
+    char input_buf[128];
     char req[BUF_SIZE], res[BUF_SIZE];
     char text[256];
     int task_id;
 
+    snprintf(req, sizeof(req), "%s%s%d", COMMAND_LIST_TASKS, COMMAND_SEPARATOR, board_id);
+    send_cmd(sock, req, res);
+
+    printf("\n========================================\n");
+    printf("List Task in Board no. %d [%s]\n", board_id, board_name);
+    if (display_tasks(res) <= 0) {
+        return;
+    }
+
     while (1) {
-        printf("\n========================================\n");
-        printf("List Task in Board no. %d\n", board_id);
-
-        snprintf(req, sizeof(req), "%s%s%d", COMMAND_LIST_TASKS, COMMAND_SEPARATOR, board_id);
-        send_cmd(sock, req, res);
-        display_tasks(res);
-
         printf("\nWhat do you want to do?\n");
         printf("1. Create Task\n");
         printf("2. Edit Task\n");
         printf("3. Delete Task\n");
         printf("4. Back to Board Menu\n");
         printf("You select option: ");
-        if (scanf("%d", &choice) != 1) {
-            while (getchar() != '\n');  
+
+        if (fgets(input_buf, sizeof(input_buf), stdin) == NULL) {
+            continue;
+        }
+        replace_char(input_buf, '\r', '\0');
+        replace_char(input_buf, '\n', '\0');
+
+        if (isEmptyOrSpace(input_buf)) {
+            printf("Error: Option cannot be empty! Please enter a number (1-4).\n");
             continue;
         }
 
+        if (!isNumeric(input_buf)) {
+            printf("Error: Invalid input! Please enter a number (1-4).\n");
+            continue;
+        }
+
+        choice = atoi(input_buf);
+
         if (choice == 1) {
-            printf("Create Task in Board no. %d\n", board_id);
+            printf("Create Task in Board no. %d [%s]\n", board_id, board_name);
             printf("Please input task title: ");
-            scanf(" %[^\n]", text);
+            if (fgets(text, sizeof(text), stdin) == NULL) continue;
+            replace_char(text, '\r', '\0');
+            replace_char(text, '\n', '\0');
 
             if (isEmptyOrSpace(text)) {
-                printf("Error: Title cannot be empty.\n");
+                printf("Error: Task title cannot be empty.\n");
                 continue;
             }
 
@@ -183,12 +202,23 @@ void task_menu(int sock, int board_id) {
 
         } else if (choice == 2) {
             printf("Please input task id to edit: ");
-            scanf("%d", &task_id);
+            if (fgets(input_buf, sizeof(input_buf), stdin) == NULL) continue;
+            replace_char(input_buf, '\r', '\0');
+            replace_char(input_buf, '\n', '\0');
+
+            if (isEmptyOrSpace(input_buf) || !isNumeric(input_buf)) {
+                printf("Error: Invalid Task ID!\n");
+                continue;
+            }
+            task_id = atoi(input_buf);
+
             printf("Please input new task title: ");
-            scanf(" %[^\n]", text);
+            if (fgets(text, sizeof(text), stdin) == NULL) continue;
+            replace_char(text, '\r', '\0');
+            replace_char(text, '\n', '\0');
 
             if (isEmptyOrSpace(text)) {
-                printf("Error: Title cannot be empty.\n");
+                printf("Error: Task title cannot be empty.\n");
                 continue;
             }
 
@@ -199,7 +229,15 @@ void task_menu(int sock, int board_id) {
 
         } else if (choice == 3) {
             printf("Please input task id to delete: ");
-            scanf("%d", &task_id);
+            if (fgets(input_buf, sizeof(input_buf), stdin) == NULL) continue;
+            replace_char(input_buf, '\r', '\0');
+            replace_char(input_buf, '\n', '\0');
+
+            if (isEmptyOrSpace(input_buf) || !isNumeric(input_buf)) {
+                printf("Error: Invalid Task ID!\n");
+                continue;
+            }
+            task_id = atoi(input_buf);
 
             snprintf(req, sizeof(req), "%s%s%d%s%d", 
                      COMMAND_DELETE_TASK, COMMAND_SEPARATOR, board_id, COMMAND_SEPARATOR, task_id);
@@ -208,7 +246,16 @@ void task_menu(int sock, int board_id) {
 
         } else if (choice == 4) {
             break;
+
+        } else {
+            printf("Error: Option must be between 1 and 4.\n");
+            continue;
         }
+        printf("\n========================================\n");
+        printf("List Task in Board no. %d [%s]\n", board_id, board_name);
+        snprintf(req, sizeof(req), "%s%s%d", COMMAND_LIST_TASKS, COMMAND_SEPARATOR, board_id);
+        send_cmd(sock, req, res);
+        display_tasks(res);
     }
 }
 
@@ -248,6 +295,7 @@ int main(int argc, char *argv[]) {
     int sock;
     struct sockaddr_in serv_addr;
     int choice;
+    char input_buf[128];
     char req[BUF_SIZE], res[BUF_SIZE];
     char text[256];
     int board_id;
@@ -273,10 +321,24 @@ int main(int argc, char *argv[]) {
         printf("4. Delete Board\n");
         printf("5. Exit\n");
         printf("Please select option: ");
-        if (scanf("%d", &choice) != 1) {
-            while (getchar() != '\n');
+
+        if (fgets(input_buf, sizeof(input_buf), stdin) == NULL) {
             continue;
         }
+        replace_char(input_buf, '\r', '\0');
+        replace_char(input_buf, '\n', '\0');
+
+        if (isEmptyOrSpace(input_buf)) {
+            printf("Error: Option cannot be empty! Please enter a number (1-5).\n");
+            continue;
+        }
+
+        if (!isNumeric(input_buf)) {
+            printf("Error: Invalid input! Please enter a number (1-5).\n");
+            continue;
+        }
+
+        choice = atoi(input_buf);
 
         if (choice == 1) {
             snprintf(req, sizeof(req), "%s", COMMAND_LIST_BOARDS);
@@ -287,15 +349,28 @@ int main(int argc, char *argv[]) {
 
             if (has_boards) {
                 printf("\nPlease select Board no (0 to cancel): ");
-                scanf("%d", &board_id);
+                if (fgets(input_buf, sizeof(input_buf), stdin) == NULL) continue;
+                replace_char(input_buf, '\r', '\0');
+                replace_char(input_buf, '\n', '\0');
+
+                if (isEmptyOrSpace(input_buf) || !isNumeric(input_buf)) {
+                    printf("Error: Invalid Board ID!\n");
+                    continue;
+                }
+
+                board_id = atoi(input_buf);
                 if (board_id > 0) {
-                    task_menu(sock, board_id);
+                    char current_board_name[100] = "Unknown";
+                    get_board_name_by_id(res, board_id, current_board_name, sizeof(current_board_name));
+                    task_menu(sock, board_id, current_board_name);
                 }
             }
 
         } else if (choice == 2) {
             printf("Please input board name: ");
-            scanf(" %[^\n]", text);
+            if (fgets(text, sizeof(text), stdin) == NULL) continue;
+            replace_char(text, '\r', '\0');
+            replace_char(text, '\n', '\0');
 
             if (isEmptyOrSpace(text)) {
                 printf("Error: Board name cannot be empty.\n");
@@ -308,9 +383,20 @@ int main(int argc, char *argv[]) {
 
         } else if (choice == 3) {
             printf("Please input board id to update: ");
-            scanf("%d", &board_id);
+            if (fgets(input_buf, sizeof(input_buf), stdin) == NULL) continue;
+            replace_char(input_buf, '\r', '\0');
+            replace_char(input_buf, '\n', '\0');
+
+            if (isEmptyOrSpace(input_buf) || !isNumeric(input_buf)) {
+                printf("Error: Invalid Board ID!\n");
+                continue;
+            }
+            board_id = atoi(input_buf);
+
             printf("Please input new board name: ");
-            scanf(" %[^\n]", text);
+            if (fgets(text, sizeof(text), stdin) == NULL) continue;
+            replace_char(text, '\r', '\0');
+            replace_char(text, '\n', '\0');
 
             if (isEmptyOrSpace(text)) {
                 printf("Error: Board name cannot be empty.\n");
@@ -324,7 +410,15 @@ int main(int argc, char *argv[]) {
 
         } else if (choice == 4) {
             printf("Please input board id to delete: ");
-            scanf("%d", &board_id);
+            if (fgets(input_buf, sizeof(input_buf), stdin) == NULL) continue;
+            replace_char(input_buf, '\r', '\0');
+            replace_char(input_buf, '\n', '\0');
+
+            if (isEmptyOrSpace(input_buf) || !isNumeric(input_buf)) {
+                printf("Error: Invalid Board ID!\n");
+                continue;
+            }
+            board_id = atoi(input_buf);
 
             snprintf(req, sizeof(req), "%s%s%d", COMMAND_DELETE_BOARD, COMMAND_SEPARATOR, board_id);
             send_cmd(sock, req, res);
@@ -333,6 +427,9 @@ int main(int argc, char *argv[]) {
         } else if (choice == 5) {
             printf("Exiting...\n");
             break;
+
+        } else {
+            printf("Error: Option must be between 1 and 5.\n");
         }
     }
 
