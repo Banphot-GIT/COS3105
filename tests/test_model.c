@@ -5,56 +5,84 @@
 #include "../include/board.h"
 #include "../include/task.h"
 
+static int total_tests = 0;
+static int passed_tests = 0;
+
+static void check_test(const char *case_name, int condition) {
+    total_tests++;
+    if (condition) {
+        printf("  [PASS] %s\n", case_name);
+        passed_tests++;
+    } else {
+        printf("  [FAIL] %s\n", case_name);
+    }
+}
+
 void cleanup_test_files(void) {
     remove("data/boards.txt");
     remove("data/tasks.txt");
 }
 
 void test_board(void) {
-    printf("[TEST] Testing Board CRUD...\n");
+    printf("--- Testing Board CRUD ---\n");
 
-    // 1. ทดสอบ Input ว่าง ต้องคืน STATUS_INVALID_ARGUMENTS (200)
-    assert(add_board("") == STATUS_INVALID_ARGUMENTS);
-    assert(add_board(NULL) == STATUS_INVALID_ARGUMENTS);
+    // 1. Validation Test
+    check_test("Add board with empty string -> STATUS_INVALID_ARGUMENTS",
+               add_board("") == STATUS_INVALID_ARGUMENTS);
+    check_test("Add board with NULL pointer -> STATUS_INVALID_ARGUMENTS",
+               add_board(NULL) == STATUS_INVALID_ARGUMENTS);
 
-    // 2. ทดสอบเพิ่มบอร์ดใหม่
-    assert(add_board("Project Alpha") == STATUS_OK);
-    assert(add_board("Project Beta") == STATUS_OK);
+    // 2. Creation Test
+    check_test("Add board 'Project Alpha' -> STATUS_OK",
+               add_board("Project Alpha") == STATUS_OK);
+    check_test("Add board 'Project Beta' -> STATUS_OK",
+               add_board("Project Beta") == STATUS_OK);
 
-    // 3. ทดสอบแก้ไขบอร์ด (แก้ ID 1)
-    assert(update_board(1, "Project Alpha (Updated)") == STATUS_OK);
-    // แก้ไข ID ที่ไม่มีอยู่จริง ต้องคืน STATUS_BOARD_NOT_FOUND (201)
-    assert(update_board(999, "None") == STATUS_BOARD_NOT_FOUND);
+    // 3. Update Test
+    check_test("Update board ID 1 title -> STATUS_OK",
+               update_board(1, "Project Alpha (Updated)") == STATUS_OK);
+    check_test("Update non-existing board ID 999 -> STATUS_BOARD_NOT_FOUND",
+               update_board(999, "None") == STATUS_BOARD_NOT_FOUND);
 
-    // 4. ทดสอบลบบอร์ด
-    assert(del_board(2) == STATUS_OK);
-    assert(del_board(999) == STATUS_BOARD_NOT_FOUND);
+    // 4. Deletion Test
+    check_test("Delete existing board ID 2 -> STATUS_OK",
+               del_board(2) == STATUS_OK);
+    check_test("Delete non-existing board ID 999 -> STATUS_BOARD_NOT_FOUND",
+               del_board(999) == STATUS_BOARD_NOT_FOUND);
 
-    printf("[PASS] Board CRUD passed.\n");
+    printf("\n");
 }
 
 void test_task(void) {
-    printf("[TEST] Testing Task CRUD...\n");
+    printf("--- Testing Task CRUD ---\n");
 
-    // 1. ทดสอบ Argument ไม่ถูกต้อง (board_id <= 0 หรือชื่อว่าง)
-    assert(add_task(0, "Invalid Board ID") == STATUS_INVALID_ARGUMENTS);
-    assert(add_task(1, "") == STATUS_INVALID_ARGUMENTS);
+    // 1. Validation Test
+    check_test("Add task with invalid board_id (0) -> STATUS_INVALID_ARGUMENTS",
+               add_task(0, "Invalid Board ID") == STATUS_INVALID_ARGUMENTS);
+    check_test("Add task with empty title -> STATUS_INVALID_ARGUMENTS",
+               add_task(1, "") == STATUS_INVALID_ARGUMENTS);
 
-    // 2. ทดสอบเพิ่ม Task ให้ Board 1
-    assert(add_task(1, "Setup Database") == STATUS_OK);
-    assert(add_task(1, "Write API Docs") == STATUS_OK);
+    // 2. Creation Test
+    check_test("Add task 'Setup Database' to Board 1 -> STATUS_OK",
+               add_task(1, "Setup Database") == STATUS_OK);
+    check_test("Add task 'Write API Docs' to Board 1 -> STATUS_OK",
+               add_task(1, "Write API Docs") == STATUS_OK);
 
-    // 3. ทดสอบแก้ไข Task
-    assert(update_task(1, 1, "Setup Database (Done)") == STATUS_OK);
-    // ระบุ Task ID หรือ Board ID ที่ไม่มีอยู่จริง
-    assert(update_task(1, 999, "None") == STATUS_TASK_NOT_FOUND);
-    assert(update_task(999, 1, "None") == STATUS_TASK_NOT_FOUND);
+    // 3. Update Test
+    check_test("Update task ID 1 title in Board 1 -> STATUS_OK",
+               update_task(1, 1, "Setup Database (Done)") == STATUS_OK);
+    check_test("Update non-existing task ID 999 in Board 1 -> STATUS_TASK_NOT_FOUND",
+               update_task(1, 999, "None") == STATUS_TASK_NOT_FOUND);
+    check_test("Update task in non-existing Board 999 -> STATUS_TASK_NOT_FOUND",
+               update_task(999, 1, "None") == STATUS_TASK_NOT_FOUND);
 
-    // 4. ทดสอบลบ Task
-    assert(del_task(1, 2) == STATUS_OK);
-    assert(del_task(1, 999) == STATUS_TASK_NOT_FOUND);
+    // 4. Deletion Test
+    check_test("Delete existing task ID 2 from Board 1 -> STATUS_OK",
+               del_task(1, 2) == STATUS_OK);
+    check_test("Delete non-existing task ID 999 from Board 1 -> STATUS_TASK_NOT_FOUND",
+               del_task(1, 999) == STATUS_TASK_NOT_FOUND);
 
-    printf("[PASS] Task CRUD passed.\n");
+    printf("\n");
 }
 
 int main(void) {
@@ -63,6 +91,15 @@ int main(void) {
     test_board();
     test_task();
 
-    printf("\n=== All Model Tests Passed Successfully! ===\n");
-    return 0;
+    printf("========================================\n");
+    printf("Test Summary: %d/%d passed\n", passed_tests, total_tests);
+    printf("========================================\n");
+
+    if (passed_tests == total_tests) {
+        printf("RESULT: All tests passed successfully.\n");
+        return 0;
+    } else {
+        printf("RESULT: Some tests failed!\n");
+        return 1;
+    }
 }
