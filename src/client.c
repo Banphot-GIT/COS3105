@@ -212,6 +212,37 @@ void task_menu(int sock, int board_id) {
     }
 }
 
+void get_board_name_by_id(const char *res, int target_id, char *out_name, size_t max_len) {
+    strncpy(out_name, "", max_len);
+
+    char copy[BUF_SIZE];
+    strncpy(copy, res, sizeof(copy) - 1);
+    copy[sizeof(copy) - 1] = '\0';
+
+    char *saveptr;
+    char *cmd = strtok_r(copy, COMMAND_SEPARATOR, &saveptr);
+    char *status_str = strtok_r(NULL, COMMAND_SEPARATOR, &saveptr);
+    char *data = strtok_r(NULL, COMMAND_SEPARATOR, &saveptr);
+    (void)cmd;
+
+    if (!status_str || atoi(status_str) != STATUS_OK || !data) return;
+
+    char *item_saveptr;
+    char *item = strtok_r(data, ";", &item_saveptr);
+    while (item != NULL) {
+        char *colon = strchr(item, ':');
+        if (colon) {
+            *colon = '\0';
+            if (atoi(item) == target_id) {
+                strncpy(out_name, colon + 1, max_len - 1);
+                out_name[max_len - 1] = '\0';
+                return;
+            }
+        }
+        item = strtok_r(NULL, ";", &item_saveptr);
+    }
+}
+
 // Board Menu
 int main(int argc, char *argv[]) {
     int sock;
